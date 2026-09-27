@@ -1,0 +1,6 @@
+{
+  "name": "Fathirridha Finance Track",
+  "description": "Multi-currency financial tracker supporting IDR and USD accounts, cross-currency transfers, automated bank admin fees, dynamic category management, and CSV spreadsheet exports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
