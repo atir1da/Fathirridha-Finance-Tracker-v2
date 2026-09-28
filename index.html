@@ -30,10 +30,8 @@
     <!-- Chart.js for interactive donut charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Google Firebase JS SDK v10+ (via CDN scripts) -->
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <!-- Google Firebase SDK & Authentication Engine -->
+    <script type="module" src="/src/firebase.ts"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -264,27 +262,68 @@
           </div>
         </div>
 
-        <!-- Real-Time Cloud Sync Card in Drawer -->
-        <div class="p-3.5 rounded-xl bg-purple-950/50 border border-purple-400/30 text-xs space-y-2.5">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-sm">☁️</span>
-              <span class="font-bold text-white text-xs">Real-Time Cloud Sync</span>
+        <!-- Google Account & Real-Time Cloud Sync Card in Drawer -->
+        <div class="p-3.5 rounded-xl bg-purple-950/60 border border-purple-400/30 text-xs space-y-2.5">
+          <!-- Signed-out state in drawer -->
+          <div id="drawer-signed-out-box" class="space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-sm">☁️</span>
+                <span class="font-bold text-white text-xs">Cloud Synchronization</span>
+              </div>
+              <span id="drawer-cloud-status-badge" class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-white/10 text-purple-200 border border-white/10">Local Offline</span>
             </div>
-            <span id="drawer-cloud-status-badge" class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-white/10 text-purple-200 border border-white/10">Local Mode</span>
-          </div>
-          <p class="text-[11px] text-purple-200/80 leading-snug">
-            Google Firebase Firestore multi-device live sync for Mobile, Tablet, and Desktop.
-          </p>
-          <div class="pt-1.5 flex items-center justify-between border-t border-purple-400/20 text-[10px]">
-            <span class="text-purple-200/90 font-mono">Room: <span id="drawer-cloud-room-label" class="text-amber-300 font-semibold">default-vault</span></span>
+            <p class="text-[11px] text-purple-200/80 leading-snug">
+              Sign in with Google to enable automatic real-time sync across your phone, tablet, and PC.
+            </p>
             <button
-              onclick="openCloudSyncModal(); closePurpleDrawer();"
-              class="px-2.5 py-1 rounded-md bg-white/15 hover:bg-white/25 text-white font-semibold transition-colors flex items-center gap-1 shadow-xs"
+              onclick="handleGoogleSignIn(); closePurpleDrawer();"
+              class="w-full py-2 px-3 rounded-lg bg-white text-slate-800 hover:bg-slate-100 font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm"
             >
-              <span>Sync Setup</span>
-              <span>&rarr;</span>
+              <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+              </svg>
+              <span>Sign in with Google</span>
             </button>
+            <div class="pt-1 flex items-center justify-between text-[10px] text-purple-200/70 border-t border-purple-400/20">
+              <span>Path: users/{uid}/data</span>
+              <button onclick="openCloudSyncModal(); closePurpleDrawer();" class="hover:underline text-purple-200">Sync Settings</button>
+            </div>
+          </div>
+
+          <!-- Signed-in state in drawer -->
+          <div id="drawer-signed-in-box" class="space-y-2.5 hidden">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="font-bold text-white text-xs">Google Account</span>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Live Firestore</span>
+            </div>
+            <div class="flex items-center gap-2.5 p-2 rounded-lg bg-black/25 border border-purple-400/20">
+              <img id="drawer-user-avatar" src="" alt="User" class="w-8 h-8 rounded-full border border-purple-300/40 object-cover" />
+              <div class="min-w-0 flex-1">
+                <div id="drawer-user-name" class="font-bold text-white text-xs truncate">User</div>
+                <div id="drawer-user-email" class="text-[10px] text-purple-200/80 truncate">user@gmail.com</div>
+              </div>
+            </div>
+            <div class="pt-1 flex items-center justify-between gap-2 text-[10px]">
+              <button
+                onclick="triggerManualCloudSync(); closePurpleDrawer();"
+                class="px-2.5 py-1 rounded-md bg-white/15 hover:bg-white/25 text-white font-semibold transition-colors flex items-center gap-1 shadow-xs"
+              >
+                <span>Sync Now</span>
+              </button>
+              <button
+                onclick="handleGoogleSignOut(); closePurpleDrawer();"
+                class="px-2.5 py-1 rounded-md bg-white/10 hover:bg-rose-500/40 text-purple-200 hover:text-white font-semibold transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -408,21 +447,114 @@
             </button>
           </div>
 
-          <!-- Zone 3: Quick Action, Settings & Theme Controls -->
+          <!-- Zone 3: Google Auth, Quick Action, Settings & Theme Controls -->
           <div class="flex items-center gap-1 sm:gap-2 shrink-0">
-            <!-- Cloud Sync Status Button -->
+            <!-- Google Sign-In Button (Shown when not authenticated) -->
             <button
-              id="cloud-sync-btn"
-              onclick="openCloudSyncModal()"
-              title="Firebase Firestore Cloud Sync - Multi-Device Live Synchronization"
-              class="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs font-semibold rounded-lg border transition-all shrink-0 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-xs"
+              id="header-google-signin-btn"
+              onclick="handleGoogleSignIn()"
+              title="Sign in with Google Account to synchronize across devices in real time"
+              class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all shrink-0 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 shadow-xs hover:border-purple-400 dark:hover:border-purple-500"
             >
-              <span id="cloud-sync-status-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z" />
+              <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
               </svg>
-              <span id="cloud-sync-status-text" class="hidden md:inline">Cloud Sync</span>
+              <span class="hidden sm:inline">Sign in with Google</span>
+              <span class="sm:hidden font-bold">Sign In</span>
             </button>
+
+            <!-- User Profile Avatar & Dropdown (Shown when authenticated) -->
+            <div id="header-user-profile-container" class="relative hidden">
+              <button
+                id="header-user-btn"
+                onclick="toggleUserDropdown(event)"
+                class="flex items-center gap-1.5 sm:gap-2 p-0.5 sm:px-2 sm:py-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-200 dark:border-slate-700"
+                title="Account Menu & Cloud Sync"
+              >
+                <div class="relative">
+                  <img
+                    id="header-user-avatar"
+                    src=""
+                    alt="User Profile"
+                    class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-purple-300 dark:border-purple-600 object-cover shadow-2xs"
+                    onerror="this.style.display='none'; document.getElementById('header-user-fallback-avatar').classList.remove('hidden');"
+                  />
+                  <div
+                    id="header-user-fallback-avatar"
+                    class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center hidden shadow-2xs"
+                  >
+                    U
+                  </div>
+                  <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900"></span>
+                </div>
+                <div class="hidden md:flex flex-col text-left">
+                  <span id="header-user-name" class="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[100px]">User</span>
+                  <span class="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                    Cloud Synced
+                  </span>
+                </div>
+                <svg class="w-3.5 h-3.5 text-slate-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+
+              <!-- Dropdown Menu -->
+              <div
+                id="header-user-dropdown"
+                class="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-3 hidden z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3"
+              >
+                <div class="flex items-center gap-2.5 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                  <img id="dropdown-user-avatar" src="" alt="User" class="w-10 h-10 rounded-full border border-purple-300 object-cover" />
+                  <div class="min-w-0 flex-1">
+                    <h4 id="dropdown-user-name" class="font-bold text-xs text-slate-900 dark:text-white truncate">User Name</h4>
+                    <p id="dropdown-user-email" class="text-[11px] text-slate-500 dark:text-slate-400 truncate">user@gmail.com</p>
+                    <span class="inline-flex items-center gap-1 text-[9px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> users/{uid}/data
+                    </span>
+                  </div>
+                </div>
+
+                <div class="space-y-1 text-xs">
+                  <button
+                    onclick="triggerManualCloudSync(); closeUserDropdown();"
+                    class="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-200 transition-colors"
+                  >
+                    <span class="flex items-center gap-2">
+                      <svg class="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                      <span>Sync Ledger Now</span>
+                    </span>
+                    <span id="dropdown-sync-status-pill" class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">Live</span>
+                  </button>
+
+                  <button
+                    onclick="openCloudSyncModal(); closeUserDropdown();"
+                    class="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200 transition-colors"
+                  >
+                    <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                    <span>Cloud Sync Details</span>
+                  </button>
+
+                  <button
+                    onclick="handleGoogleSignIn(); closeUserDropdown();"
+                    class="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200 transition-colors"
+                  >
+                    <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    <span>Switch Google Account</span>
+                  </button>
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    onclick="handleGoogleSignOut(); closeUserDropdown();"
+                    class="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-semibold text-xs transition-colors flex items-center gap-2"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <button
               onclick="openTransactionModal()"
@@ -437,7 +569,7 @@
             <button
               id="settings-toggle-btn"
               onclick="openSettingsModal()"
-              title="Settings: Categories, Spreadsheet Export & Backup"
+              title="Settings: Categories, Spreadsheet Export & Cloud Sync"
               class="p-1.5 sm:p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1756,7 +1888,7 @@
             class="pb-2.5 border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center gap-1.5 transition-colors"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
-            <span>Cloud Sync (Firebase)</span>
+            <span>Google Account &amp; Cloud Sync</span>
           </button>
         </div>
 
@@ -1911,33 +2043,151 @@
             </div>
           </div>
 
-          <!-- SECTION 3: CLOUD SYNC QUICK ACCESS -->
+          <!-- SECTION 3: GOOGLE ACCOUNT & CLOUD SYNC -->
           <div id="settings-tab-cloud" class="space-y-4 hidden">
-            <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
-              <div class="flex items-start gap-3">
-                <div class="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+            <!-- Google Authentication Status Card -->
+            <div class="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+              <!-- Signed-out banner inside settings -->
+              <div id="settings-signed-out-card" class="space-y-3">
+                <div class="flex items-start gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-bold text-slate-900 dark:text-white">Google Account Authentication</h4>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                      Sign in with your Google account to automatically synchronize your accounts, balances, transactions ledger, custom categories, and savings goals to your private cloud storage under <span class="font-mono text-purple-600 dark:text-purple-400">users/{userId}/data</span>.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 class="text-xs font-bold text-slate-900 dark:text-white">Google Firebase Firestore Real-Time Sync</h4>
-                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Connect your Firestore database to synchronize transactions, balances, and savings pools across your Mobile, Tablet, and Desktop in real-time.
-                  </p>
-                </div>
-              </div>
-              <div class="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
-                <div class="flex items-center gap-2 text-xs">
-                  <span id="settings-cloud-status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
-                  <span id="settings-cloud-status-label" class="font-medium text-slate-600 dark:text-slate-300">Local Mode (Offline)</span>
-                </div>
-                <div class="flex items-center gap-2">
+
+                <div class="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
+                  <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                    <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                    <span>Currently stored locally on this device (offline ready)</span>
+                  </div>
                   <button
                     type="button"
-                    onclick="openCloudSyncModal(); closeSettingsModal();"
-                    class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
+                    onclick="handleGoogleSignIn()"
+                    class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl shadow-md transition-all"
                   >
-                    <span>Open Cloud Sync Manager &rarr;</span>
+                    <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                    <span>Sign in with Google</span>
                   </button>
+                </div>
+              </div>
+
+              <!-- Signed-in profile card inside settings -->
+              <div id="settings-signed-in-card" class="space-y-3 hidden">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <img id="settings-user-avatar" src="" alt="Profile" class="w-12 h-12 rounded-full border-2 border-purple-400 shadow-xs object-cover" />
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <h4 id="settings-user-name" class="font-bold text-sm text-slate-900 dark:text-white">User Name</h4>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          Google Authenticated
+                        </span>
+                      </div>
+                      <p id="settings-user-email" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">user@gmail.com</p>
+                      <div class="flex items-center gap-1.5 mt-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Cloud Document: <strong id="settings-user-doc-path">users/.../data/vault</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800">
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onclick="triggerManualCloudSync()"
+                      class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-colors flex items-center gap-1.5 shadow-xs"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                      <span>Sync Ledger Now</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick="handleGoogleSignIn()"
+                      class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+                    >
+                      Switch Account
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onclick="handleGoogleSignOut()"
+                    class="px-3.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800 rounded-lg transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Real-Time Sync & Security Information -->
+            <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 space-y-3 text-xs">
+              <h4 class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>⚡</span>
+                <span>Automatic Cloud Synchronization Architecture</span>
+              </h4>
+              <ul class="space-y-1.5 text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed list-disc list-inside">
+                <li><strong>State Variables Synced:</strong> Accounts &amp; balances, transactions ledger history, custom categories (Income, Expense, Transfer), and savings pools with target milestones.</li>
+                <li><strong>Real-Time Listeners:</strong> Uses Firestore <span class="font-mono text-purple-600 dark:text-purple-400 font-semibold">onSnapshot</span> so edits made on one device instantly update across all other active screens without refreshing.</li>
+                <li><strong>Offline Fallback:</strong> All records are cached in <span class="font-mono text-slate-700 dark:text-slate-300 font-semibold">localStorage</span>. The application remains fully functional offline, merging changes when you reconnect.</li>
+                <li><strong>Security Rules:</strong> Private user document isolation at <span class="font-mono text-purple-600 dark:text-purple-400 font-semibold">users/{userId}/data/vault</span> ensures only your authenticated Google UID can read or write your records.</li>
+              </ul>
+            </div>
+
+            <!-- Firebase Project Reference & Setup Details -->
+            <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span class="text-amber-500 font-bold">&lt;/&gt;</span>
+                    <span>Firebase Project Credentials Reference</span>
+                  </h4>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Pre-configured from <span class="font-mono text-purple-600 dark:text-purple-400">firebase-applet-config.json</span>.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onclick="openCloudSyncModal(); closeSettingsModal();"
+                  class="px-2.5 py-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  Manage Keys &rarr;
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div>
+                  <span class="text-slate-400">Project ID:</span>
+                  <span id="ref-projectId" class="font-bold text-slate-800 dark:text-slate-200 ml-1">giga-fort-707pf</span>
+                </div>
+                <div>
+                  <span class="text-slate-400">Auth Domain:</span>
+                  <span id="ref-authDomain" class="font-bold text-slate-800 dark:text-slate-200 ml-1">giga-fort-707pf.firebaseapp.com</span>
+                </div>
+                <div>
+                  <span class="text-slate-400">Storage Bucket:</span>
+                  <span id="ref-storageBucket" class="text-slate-700 dark:text-slate-300 ml-1">giga-fort-707pf.firebasestorage.app</span>
+                </div>
+                <div>
+                  <span class="text-slate-400">Database ID:</span>
+                  <span id="ref-databaseId" class="text-slate-700 dark:text-slate-300 ml-1">ai-studio-nusantaraledgerm...</span>
                 </div>
               </div>
             </div>
@@ -1999,56 +2249,67 @@
             </div>
           </div>
 
-          <!-- Section 1: Sync Room Code / Multi-Device Vault -->
+          <!-- Section 1: Google Account Real-Time Cloud Authentication -->
           <div class="p-4 rounded-xl border border-indigo-100 dark:border-indigo-950/80 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-3">
             <div class="flex items-start justify-between gap-2">
               <div>
                 <h4 class="font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5 text-xs">
                   <span>🔐</span>
-                  <span>Sync Room Code (Multi-Device Vault ID)</span>
+                  <span>Google Account Authentication (Firebase Auth)</span>
                 </h4>
                 <p class="text-[11px] text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
-                  Enter this exact Room Code on your smartphone, tablet, and PC to share and sync the same financial records.
+                  Sign in with Google to automatically isolate and synchronize your personal ledger under <span class="font-mono text-purple-600 dark:text-purple-400 font-semibold">users/{userId}/data</span> across all your open devices.
                 </p>
               </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <div class="relative flex-1">
-                <input
-                  type="text"
-                  id="sync-room-input"
-                  placeholder="e.g. fathirridha-vault-01"
-                  class="w-full text-xs font-mono font-semibold px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-hidden tracking-wide"
-                />
+            <!-- Modal Signed-Out State -->
+            <div id="modal-google-signed-out" class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-lg bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></span>
+                <span class="text-xs text-slate-700 dark:text-slate-300">Offline Local Storage &bull; Sign in to sync across devices</span>
               </div>
-              <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onclick="handleGoogleSignIn()"
+                class="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 shrink-0"
+              >
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Sign in with Google</span>
+              </button>
+            </div>
+
+            <!-- Modal Signed-In State -->
+            <div id="modal-google-signed-in" class="hidden flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-lg bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-800">
+              <div class="flex items-center gap-3">
+                <img id="modal-user-avatar" src="" alt="User" class="w-9 h-9 rounded-full border border-purple-300 object-cover" />
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <span id="modal-user-name" class="font-bold text-xs text-slate-900 dark:text-white truncate">User Name</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  </div>
+                  <span id="modal-user-email" class="text-[11px] text-slate-500 dark:text-slate-400 truncate block">user@gmail.com</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
                 <button
                   type="button"
-                  onclick="generateRandomRoomCode()"
-                  class="px-2.5 py-2 text-xs font-medium bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors flex items-center gap-1 shadow-xs"
-                  title="Generate a random vault code"
+                  onclick="triggerManualCloudSync()"
+                  class="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-xs transition-colors"
                 >
-                  <span>🎲</span>
-                  <span>Random</span>
+                  Sync Now
                 </button>
                 <button
                   type="button"
-                  onclick="copyRoomCode()"
-                  class="px-2.5 py-2 text-xs font-medium bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors flex items-center gap-1 shadow-xs"
-                  title="Copy room code to clipboard"
+                  onclick="handleGoogleSignOut()"
+                  class="px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 dark:bg-rose-950/40 rounded-lg transition-colors border border-rose-200 dark:border-rose-800"
                 >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                  <span>Copy Code</span>
-                </button>
-                <button
-                  type="button"
-                  onclick="copyRoomLink()"
-                  class="px-2.5 py-2 text-xs font-medium bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg transition-colors flex items-center gap-1 shadow-xs"
-                  title="Copy invite URL with room parameter"
-                >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                  <span>Share Link</span>
+                  Sign Out
                 </button>
               </div>
             </div>
@@ -2253,14 +2514,18 @@
                 <strong>1. Create Free Firebase Project:</strong> Visit <span class="font-mono text-indigo-600 dark:text-indigo-400">console.firebase.google.com</span> &rarr; Add Project &rarr; Build &rarr; Firestore Database.
               </p>
               <p>
-                <strong>2. Firestore Security Rules:</strong> In Firebase Console &rarr; Firestore &rarr; <em>Rules</em> tab, paste the rule below and click <em>Publish</em>:
+                <strong>2. Firestore Security Rules:</strong> In Firebase Console &rarr; Firestore &rarr; <em>Rules</em> tab, the rules isolate data per authenticated Google user at <span class="font-mono text-purple-600 dark:text-purple-400">users/{userId}/data</span>:
               </p>
               <div class="relative">
                 <pre class="p-2.5 rounded-lg bg-slate-900 text-slate-100 text-[10px] font-mono overflow-x-auto">rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /financial_tracker_rooms/{roomId} {
-      allow read, write: if true;
+    match /{document=**} { allow read, write: if false; }
+    match /users/{userId}/data/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /test/connection {
+      allow get: if true;
     }
   }
 }</pre>
@@ -2273,7 +2538,7 @@ service cloud.firestore {
                 </button>
               </div>
               <p>
-                <strong>3. Real-Time Snapshots:</strong> Once connected, every transaction update or balance change broadcasts instantly via Firestore <span class="font-mono text-indigo-500">onSnapshot</span> to all active devices in the same room.
+                <strong>3. Real-Time Snapshots:</strong> Once signed in, any change to accounts, balances, transactions, custom categories, or savings goals synchronizes automatically via Firestore <span class="font-mono text-indigo-500">onSnapshot</span> to all active devices in sub-seconds.
               </p>
             </div>
           </details>
@@ -2791,15 +3056,13 @@ service cloud.firestore {
       const STORAGE_KEY_AUTO_SYNC = 'ft_sync_auto_v1';
       const DEFAULT_ROOM_CODE = 'fathirridha-vault';
 
-      // Firebase Sync Engine State
+      // Firebase Authentication & Cloud Sync State
+      let currentUser = null;
+      let currentUserDocUnsubscribe = null;
       let syncState = 'LOCAL'; // 'LOCAL' | 'CONNECTING' | 'CONNECTED' | 'SYNCING' | 'ERROR'
       let syncErrorMsg = '';
       let currentRoomCode = DEFAULT_ROOM_CODE;
       let myDeviceId = '';
-      let firestoreDb = null;
-      let firebaseAuth = null;
-      let firebaseApp = null;
-      let unsubscribeSnapshot = null;
       let isRemoteUpdating = false;
       let pushDebounceTimer = null;
       let lastSyncedDate = null;
@@ -6603,13 +6866,8 @@ service cloud.firestore {
       }
 
       // ==========================================
-      // GOOGLE FIREBASE FIRESTORE REAL-TIME CLOUD SYNC
+      // GOOGLE FIREBASE AUTH & FIRESTORE REAL-TIME SYNC ENGINE
       // ==========================================
-
-      function cleanRoomCode(code) {
-        const str = String(code || DEFAULT_ROOM_CODE).trim().toLowerCase();
-        return str.replace(/[^a-z0-9_-]/g, '-') || DEFAULT_ROOM_CODE;
-      }
 
       function getDeviceId() {
         if (!myDeviceId) {
@@ -6639,56 +6897,178 @@ service cloud.firestore {
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       }
 
-      function updateSyncUI(state, message = '') {
-        syncState = state;
-        const roomClean = cleanRoomCode(currentRoomCode);
+      // UI update for Authentication state (Header, Drawer, Settings & Modal)
+      function updateAuthUI(user) {
+        currentUser = user;
 
-        // 1. Header Button & Badges
-        const syncBtn = document.getElementById('cloud-sync-btn');
-        const syncDot = document.getElementById('cloud-sync-status-dot');
-        const syncText = document.getElementById('cloud-sync-status-text');
+        const headerSignInBtn = document.getElementById('header-google-signin-btn');
+        const headerProfileContainer = document.getElementById('header-user-profile-container');
+        const headerAvatar = document.getElementById('header-user-avatar');
+        const headerFallbackAvatar = document.getElementById('header-user-fallback-avatar');
+        const headerName = document.getElementById('header-user-name');
 
-        if (syncDot && syncText && syncBtn) {
-          syncDot.className = 'w-2 h-2 rounded-full shrink-0';
-          if (state === 'CONNECTED') {
-            syncDot.classList.add('bg-emerald-500', 'animate-pulse');
-            syncText.textContent = `Cloud: ${roomClean.length > 14 ? roomClean.slice(0, 12) + '…' : roomClean}`;
-            syncBtn.className =
-              'inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs font-semibold rounded-lg border transition-all shrink-0 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-500/20';
-            syncBtn.title = `Firebase Firestore Live: Room "${roomClean}". Real-time multi-device sync active. Click to manage.`;
-          } else if (state === 'SYNCING') {
-            syncDot.classList.add('bg-amber-500', 'animate-ping');
-            syncText.textContent = 'Syncing…';
-            syncBtn.className =
-              'inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs font-semibold rounded-lg border transition-all shrink-0 bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 shadow-xs';
-          } else if (state === 'CONNECTING') {
-            syncDot.classList.add('bg-amber-400', 'animate-pulse');
-            syncText.textContent = 'Connecting…';
-            syncBtn.className =
-              'inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs font-semibold rounded-lg border transition-all shrink-0 bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 shadow-xs';
-          } else if (state === 'ERROR') {
-            syncDot.classList.add('bg-rose-500');
-            syncText.textContent = 'Sync Error';
-            syncBtn.className =
-              'inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs font-semibold rounded-lg border transition-all shrink-0 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300 shadow-xs';
-            syncBtn.title = `Cloud Sync Error: ${message || syncErrorMsg}. Click to view details.`;
+        const dropdownAvatar = document.getElementById('dropdown-user-avatar');
+        const dropdownName = document.getElementById('dropdown-user-name');
+        const dropdownEmail = document.getElementById('dropdown-user-email');
+
+        const drawerSignedOut = document.getElementById('drawer-signed-out-box');
+        const drawerSignedIn = document.getElementById('drawer-signed-in-box');
+        const drawerAvatar = document.getElementById('drawer-user-avatar');
+        const drawerName = document.getElementById('drawer-user-name');
+        const drawerEmail = document.getElementById('drawer-user-email');
+
+        const settingsSignedOut = document.getElementById('settings-signed-out-card');
+        const settingsSignedIn = document.getElementById('settings-signed-in-card');
+        const settingsAvatar = document.getElementById('settings-user-avatar');
+        const settingsName = document.getElementById('settings-user-name');
+        const settingsEmail = document.getElementById('settings-user-email');
+        const settingsDocPath = document.getElementById('settings-user-doc-path');
+
+        const modalSignedOut = document.getElementById('modal-google-signed-out');
+        const modalSignedIn = document.getElementById('modal-google-signed-in');
+        const modalAvatar = document.getElementById('modal-user-avatar');
+        const modalName = document.getElementById('modal-user-name');
+        const modalEmail = document.getElementById('modal-user-email');
+
+        if (user) {
+          const displayName = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
+          const firstName = displayName.split(' ')[0] || displayName;
+          const photoURL = user.photoURL || '';
+          const email = user.email || '';
+
+          // 1. Header Bar
+          if (headerSignInBtn) headerSignInBtn.classList.add('hidden');
+          if (headerProfileContainer) headerProfileContainer.classList.remove('hidden');
+          if (headerName) headerName.textContent = firstName;
+
+          if (photoURL) {
+            if (headerAvatar) {
+              headerAvatar.src = photoURL;
+              headerAvatar.style.display = 'block';
+            }
+            if (headerFallbackAvatar) headerFallbackAvatar.classList.add('hidden');
+            if (dropdownAvatar) dropdownAvatar.src = photoURL;
+            if (drawerAvatar) drawerAvatar.src = photoURL;
+            if (settingsAvatar) settingsAvatar.src = photoURL;
+            if (modalAvatar) modalAvatar.src = photoURL;
           } else {
-            // LOCAL
-            syncDot.classList.add('bg-slate-400');
-            syncText.textContent = 'Cloud Sync';
-            syncBtn.className =
-              'inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs font-semibold rounded-lg border transition-all shrink-0 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-xs';
-            syncBtn.title = 'Local Mode: Offline-first. Click to connect Google Firebase Firestore.';
+            if (headerAvatar) headerAvatar.style.display = 'none';
+            if (headerFallbackAvatar) {
+              headerFallbackAvatar.textContent = firstName.charAt(0).toUpperCase();
+              headerFallbackAvatar.classList.remove('hidden');
+            }
           }
+
+          if (dropdownName) dropdownName.textContent = displayName;
+          if (dropdownEmail) dropdownEmail.textContent = email;
+
+          // 2. Purple Navigation Drawer
+          if (drawerSignedOut) drawerSignedOut.classList.add('hidden');
+          if (drawerSignedIn) drawerSignedIn.classList.remove('hidden');
+          if (drawerName) drawerName.textContent = displayName;
+          if (drawerEmail) drawerEmail.textContent = email;
+
+          // 3. Settings Modal Tab
+          if (settingsSignedOut) settingsSignedOut.classList.add('hidden');
+          if (settingsSignedIn) settingsSignedIn.classList.remove('hidden');
+          if (settingsName) settingsName.textContent = displayName;
+          if (settingsEmail) settingsEmail.textContent = email;
+          if (settingsDocPath) settingsDocPath.textContent = `users/${user.uid}/data/vault`;
+
+          // 4. Cloud Sync Modal
+          if (modalSignedOut) modalSignedOut.classList.add('hidden');
+          if (modalSignedIn) {
+            modalSignedIn.classList.remove('hidden');
+            modalSignedIn.classList.add('flex');
+          }
+          if (modalName) modalName.textContent = displayName;
+          if (modalEmail) modalEmail.textContent = email;
+
+          updateSyncUI('CONNECTED', `Signed in as ${email}. Cloud synchronization active.`);
+        } else {
+          // Signed-out state
+          if (headerSignInBtn) headerSignInBtn.classList.remove('hidden');
+          if (headerProfileContainer) headerProfileContainer.classList.add('hidden');
+
+          if (drawerSignedOut) drawerSignedOut.classList.remove('hidden');
+          if (drawerSignedIn) drawerSignedIn.classList.add('hidden');
+
+          if (settingsSignedOut) settingsSignedOut.classList.remove('hidden');
+          if (settingsSignedIn) settingsSignedIn.classList.add('hidden');
+
+          if (modalSignedOut) modalSignedOut.classList.remove('hidden');
+          if (modalSignedIn) {
+            modalSignedIn.classList.add('hidden');
+            modalSignedIn.classList.remove('flex');
+          }
+
+          updateSyncUI('LOCAL', 'Offline Local Storage. Sign in with Google to sync data.');
+        }
+      }
+
+      function toggleUserDropdown(event) {
+        if (event) event.stopPropagation();
+        const dropdown = document.getElementById('header-user-dropdown');
+        if (dropdown) {
+          dropdown.classList.toggle('hidden');
+        }
+      }
+
+      function closeUserDropdown() {
+        const dropdown = document.getElementById('header-user-dropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+      }
+
+      // Close user dropdown when clicking anywhere else
+      document.addEventListener('click', (e) => {
+        const container = document.getElementById('header-user-profile-container');
+        if (container && !container.contains(e.target)) {
+          closeUserDropdown();
+        }
+      });
+
+      // Google Sign-In Action
+      async function handleGoogleSignIn() {
+        if (!window.FirebaseEngine) {
+          showToast('Initializing Firebase engine... please try again in a moment.', 'info');
+          return;
         }
 
-        // 2. Purple Drawer Badge & Room
+        try {
+          showToast('Opening Google Sign-In...', 'info');
+          await window.FirebaseEngine.signInWithGoogle();
+        } catch (err) {
+          console.error('Google Sign-In failed:', err);
+          showToast(err.message || 'Google Sign-In failed', 'error');
+        }
+      }
+
+      // Google Sign-Out Action
+      async function handleGoogleSignOut() {
+        if (!window.FirebaseEngine) return;
+        try {
+          if (currentUserDocUnsubscribe) {
+            currentUserDocUnsubscribe();
+            currentUserDocUnsubscribe = null;
+          }
+          await window.FirebaseEngine.signOutUser();
+          currentUser = null;
+          updateAuthUI(null);
+          showToast('Signed out of Google Account. Using local offline storage.', 'info');
+        } catch (err) {
+          console.error('Google Sign-Out failed:', err);
+          showToast('Failed to sign out', 'error');
+        }
+      }
+
+      function updateSyncUI(state, message = '') {
+        syncState = state;
+
+        // 1. Drawer Status Badge
         const drawerStatusBadge = document.getElementById('drawer-cloud-status-badge');
-        const drawerRoomLabel = document.getElementById('drawer-cloud-room-label');
-        if (drawerRoomLabel) drawerRoomLabel.textContent = roomClean;
         if (drawerStatusBadge) {
           if (state === 'CONNECTED') {
-            drawerStatusBadge.textContent = 'Live Firestore';
+            drawerStatusBadge.textContent = 'Live Cloud';
             drawerStatusBadge.className =
               'px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/40';
           } else if (state === 'SYNCING') {
@@ -6700,47 +7080,25 @@ service cloud.firestore {
             drawerStatusBadge.className =
               'px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-rose-400/20 text-rose-300 border border-rose-400/40';
           } else {
-            drawerStatusBadge.textContent = 'Local Mode';
+            drawerStatusBadge.textContent = 'Local Offline';
             drawerStatusBadge.className =
               'px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-white/10 text-purple-200 border border-white/10';
           }
         }
 
-        // 3. Settings Modal Tab Cloud
-        const settingsDot = document.getElementById('settings-cloud-status-dot');
-        const settingsLabel = document.getElementById('settings-cloud-status-label');
-        if (settingsDot && settingsLabel) {
-          settingsDot.className = 'w-2.5 h-2.5 rounded-full';
-          if (state === 'CONNECTED') {
-            settingsDot.classList.add('bg-emerald-500');
-            settingsLabel.textContent = `Connected & Real-Time Syncing (Room: ${roomClean})`;
-          } else if (state === 'SYNCING') {
-            settingsDot.classList.add('bg-amber-500', 'animate-spin');
-            settingsLabel.textContent = `Syncing changes with cloud…`;
-          } else if (state === 'ERROR') {
-            settingsDot.classList.add('bg-rose-500');
-            settingsLabel.textContent = `Error: ${message || syncErrorMsg}`;
-          } else {
-            settingsDot.classList.add('bg-slate-400');
-            settingsLabel.textContent = `Local Mode (Browser Storage Only)`;
-          }
-        }
-
-        // 4. Modal Status Elements
+        // 2. Modal Status Elements
         const modalDot = document.getElementById('cloud-modal-status-dot');
         const modalTitle = document.getElementById('cloud-modal-status-title');
         const modalDesc = document.getElementById('cloud-modal-status-desc');
         const modalDevBadge = document.getElementById('cloud-modal-device-badge');
         const modalRoomPill = document.getElementById('cloud-modal-room-pill');
         const modalLastSynced = document.getElementById('cloud-modal-last-synced');
-        const connectBtnLabel = document.getElementById('btn-connect-firebase-label');
-        const disconnectBtn = document.getElementById('btn-disconnect-firebase');
 
         if (modalDevBadge) {
           modalDevBadge.textContent = `${getDeviceName()} (${getDeviceId().slice(0, 11)})`;
         }
         if (modalRoomPill) {
-          modalRoomPill.textContent = `Room: ${roomClean}`;
+          modalRoomPill.textContent = currentUser ? `UID: ${currentUser.uid.slice(0, 10)}…` : 'Path: users/{uid}/data';
         }
         if (modalLastSynced) {
           modalLastSynced.textContent = `Last synced: ${formatSyncTime(lastSyncedDate)}`;
@@ -6750,70 +7108,44 @@ service cloud.firestore {
           modalDot.className = 'w-2.5 h-2.5 rounded-full';
           if (state === 'CONNECTED') {
             modalDot.classList.add('bg-emerald-500', 'animate-pulse');
-            modalTitle.textContent = 'Cloud Synchronized & Real-Time Active';
+            modalTitle.textContent = 'Google Cloud Firestore Synchronized';
             modalDesc.textContent =
               message ||
-              `Connected to Firestore room "${roomClean}". Real-time listener onSnapshot is active. When you edit any transaction or balance, it syncs across all open devices in sub-seconds.`;
-            if (connectBtnLabel) connectBtnLabel.textContent = 'Reconnect / Refresh Room';
-            if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+              `Connected to path users/${currentUser?.uid || '...'}/data/vault. Real-time onSnapshot listener is active across all your active screens.`;
           } else if (state === 'SYNCING') {
             modalDot.classList.add('bg-amber-500', 'animate-ping');
             modalTitle.textContent = 'Synchronizing with Firestore…';
-            modalDesc.textContent = 'Transmitting updated accounts and ledger transactions to Google Firestore.';
+            modalDesc.textContent = 'Transmitting updated accounts, ledger entries, and goals to Google Firestore.';
           } else if (state === 'CONNECTING') {
             modalDot.classList.add('bg-amber-400', 'animate-pulse');
             modalTitle.textContent = 'Connecting to Firebase…';
-            modalDesc.textContent = 'Authenticating and initializing Firestore real-time snapshot listener…';
+            modalDesc.textContent = 'Authenticating and restoring real-time cloud data…';
           } else if (state === 'ERROR') {
             modalDot.classList.add('bg-rose-500');
             modalTitle.textContent = 'Connection or Permission Error';
-            modalDesc.textContent =
-              message ||
-              syncErrorMsg ||
-              'Unable to connect to Firestore. Verify your Project ID, API Key, and Firestore Security Rules.';
-            if (connectBtnLabel) connectBtnLabel.textContent = 'Retry Connection';
-            if (disconnectBtn) disconnectBtn.classList.remove('hidden');
+            modalDesc.textContent = message || syncErrorMsg || 'Unable to sync with Firestore. Verify security rules.';
           } else {
             // LOCAL
             modalDot.classList.add('bg-slate-400');
             modalTitle.textContent = 'Local Mode (Offline Storage)';
             modalDesc.textContent =
-              'Changes are currently saved locally in this browser. Enter or paste your Firebase configuration to activate live multi-device synchronization.';
-            if (connectBtnLabel) connectBtnLabel.textContent = 'Connect & Start Live Sync';
-            if (disconnectBtn) disconnectBtn.classList.add('hidden');
+              'Changes are currently saved locally in this browser. Sign in with Google to activate live multi-device synchronization.';
           }
         }
-      }
-
-      function updateSettingsCloudUI() {
-        updateSyncUI(syncState);
       }
 
       function openCloudSyncModal() {
         const modal = document.getElementById('cloud-sync-modal');
         if (!modal) return;
 
-        // Populate room code input
-        const roomInput = document.getElementById('sync-room-input');
-        if (roomInput) {
-          roomInput.value = currentRoomCode || DEFAULT_ROOM_CODE;
-        }
-
-        // Populate config fields from localStorage
-        const savedConfigRaw = localStorage.getItem(STORAGE_KEY_FIREBASE_CONFIG);
-        if (savedConfigRaw) {
-          try {
-            const cfg = JSON.parse(savedConfigRaw);
-            if (cfg.apiKey) document.getElementById('cfg-apiKey').value = cfg.apiKey;
-            if (cfg.projectId) document.getElementById('cfg-projectId').value = cfg.projectId;
-            if (cfg.authDomain) document.getElementById('cfg-authDomain').value = cfg.authDomain || '';
-            if (cfg.storageBucket) document.getElementById('cfg-storageBucket').value = cfg.storageBucket || '';
-            if (cfg.messagingSenderId) document.getElementById('cfg-messagingSenderId').value = cfg.messagingSenderId || '';
-            if (cfg.appId) document.getElementById('cfg-appId').value = cfg.appId || '';
-          } catch (e) {
-            console.error('Failed to parse saved config:', e);
-          }
-        }
+        // Populate config fields
+        const cfg = window.FirebaseEngine?.defaultFirebaseConfig || {};
+        if (cfg.apiKey) document.getElementById('cfg-apiKey').value = cfg.apiKey;
+        if (cfg.projectId) document.getElementById('cfg-projectId').value = cfg.projectId;
+        if (cfg.authDomain) document.getElementById('cfg-authDomain').value = cfg.authDomain;
+        if (cfg.storageBucket) document.getElementById('cfg-storageBucket').value = cfg.storageBucket || '';
+        if (cfg.messagingSenderId) document.getElementById('cfg-messagingSenderId').value = cfg.messagingSenderId || '';
+        if (cfg.appId) document.getElementById('cfg-appId').value = cfg.appId || '';
 
         updateSyncUI(syncState);
         modal.classList.remove('hidden');
@@ -6830,39 +7162,8 @@ service cloud.firestore {
         input.type = input.type === 'password' ? 'text' : 'password';
       }
 
-      function generateRandomRoomCode() {
-        const num = Math.floor(1000 + Math.random() * 9000);
-        const code = `vault-${num}`;
-        const input = document.getElementById('sync-room-input');
-        if (input) input.value = code;
-        showToast(`Generated Room Code: "${code}". Click Connect to join!`, 'info');
-      }
-
-      function copyRoomCode() {
-        const input = document.getElementById('sync-room-input');
-        const code = input ? input.value.trim() : currentRoomCode;
-        if (!code) return;
-        navigator.clipboard.writeText(code).then(() => {
-          showToast(`Room Code "${code}" copied to clipboard!`, 'success');
-        }).catch(() => {
-          showToast(`Room Code: ${code}`, 'info');
-        });
-      }
-
-      function copyRoomLink() {
-        const input = document.getElementById('sync-room-input');
-        const code = input ? input.value.trim() : currentRoomCode;
-        const url = new URL(window.location.href);
-        url.searchParams.set('room', code);
-        navigator.clipboard.writeText(url.toString()).then(() => {
-          showToast(`Sync link copied! Open on other devices to auto-join.`, 'success');
-        }).catch(() => {
-          showToast(`Room Link: ${url.toString()}`, 'info');
-        });
-      }
-
       function copyFirestoreRules() {
-        const rules = `rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /financial_tracker_rooms/{roomId} {\n      allow read, write: if true;\n    }\n  }\n}`;
+        const rules = `rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} { allow read, write: if false; }\n    match /users/{userId}/data/{docId} {\n      allow read, write: if request.auth != null && request.auth.uid == userId;\n    }\n    match /test/connection {\n      allow get: if true;\n    }\n  }\n}`;
         navigator.clipboard.writeText(rules).then(() => {
           showToast('Firestore Security Rules copied to clipboard!', 'success');
         }).catch(() => {
@@ -6870,304 +7171,40 @@ service cloud.firestore {
         });
       }
 
-      function autoDetectFirebaseConfig() {
-        const snippetEl = document.getElementById('firebase-config-snippet');
-        if (!snippetEl) return;
-        const text = snippetEl.value.trim();
-        if (!text) {
-          showToast('Please paste a Firebase configuration snippet first', 'error');
-          return;
-        }
-
-        const extracted = {};
-
-        // Helper regex matching
-        const extractField = (keyName) => {
-          const regex = new RegExp(`['"]?${keyName}['"]?\\s*[:=]\\s*['"]([^'"]+)['"]`, 'i');
-          const m = text.match(regex);
-          return m ? m[1].trim() : null;
-        };
-
-        // Try JSON parsing
-        try {
-          const jsonStart = text.indexOf('{');
-          const jsonEnd = text.lastIndexOf('}');
-          if (jsonStart !== -1 && jsonEnd !== -1) {
-            const rawJson = text.substring(jsonStart, jsonEnd + 1);
-            // Convert unquoted keys to quoted
-            const fixedJson = rawJson.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
-            const parsed = JSON.parse(fixedJson);
-            if (parsed.apiKey) extracted.apiKey = parsed.apiKey;
-            if (parsed.projectId) extracted.projectId = parsed.projectId;
-            if (parsed.authDomain) extracted.authDomain = parsed.authDomain;
-            if (parsed.storageBucket) extracted.storageBucket = parsed.storageBucket;
-            if (parsed.messagingSenderId) extracted.messagingSenderId = parsed.messagingSenderId;
-            if (parsed.appId) extracted.appId = parsed.appId;
-          }
-        } catch (e) {
-          // fallback to regex
-        }
-
-        if (!extracted.apiKey) extracted.apiKey = extractField('apiKey');
-        if (!extracted.projectId) extracted.projectId = extractField('projectId');
-        if (!extracted.authDomain) extracted.authDomain = extractField('authDomain');
-        if (!extracted.storageBucket) extracted.storageBucket = extractField('storageBucket');
-        if (!extracted.messagingSenderId) extracted.messagingSenderId = extractField('messagingSenderId');
-        if (!extracted.appId) extracted.appId = extractField('appId');
-
-        let filledCount = 0;
-        if (extracted.apiKey) {
-          document.getElementById('cfg-apiKey').value = extracted.apiKey;
-          filledCount++;
-        }
-        if (extracted.projectId) {
-          document.getElementById('cfg-projectId').value = extracted.projectId;
-          filledCount++;
-        }
-        if (extracted.authDomain) {
-          document.getElementById('cfg-authDomain').value = extracted.authDomain;
-          filledCount++;
-        }
-        if (extracted.storageBucket) {
-          document.getElementById('cfg-storageBucket').value = extracted.storageBucket;
-          filledCount++;
-        }
-        if (extracted.messagingSenderId) {
-          document.getElementById('cfg-messagingSenderId').value = extracted.messagingSenderId;
-          filledCount++;
-        }
-        if (extracted.appId) {
-          document.getElementById('cfg-appId').value = extracted.appId;
-          filledCount++;
-        }
-
-        if (filledCount > 0) {
-          showToast(`✨ Successfully auto-filled ${filledCount} configuration fields!`, 'success');
-        } else {
-          showToast('Could not find apiKey or projectId in the pasted text. Check format.', 'error');
-        }
-      }
-
       function clearSavedFirebaseConfig() {
-        if (!confirm('Clear stored Firebase credentials and return to Local Storage Mode?')) return;
+        if (!confirm('Clear stored Firebase credentials and return to default configuration?')) return;
         localStorage.removeItem(STORAGE_KEY_FIREBASE_CONFIG);
-        document.getElementById('cfg-apiKey').value = '';
-        document.getElementById('cfg-projectId').value = '';
-        document.getElementById('cfg-authDomain').value = '';
-        document.getElementById('cfg-storageBucket').value = '';
-        document.getElementById('cfg-messagingSenderId').value = '';
-        document.getElementById('cfg-appId').value = '';
-        document.getElementById('firebase-config-snippet').value = '';
-
-        disconnectFirebase();
-        showToast('Firebase credentials removed from browser localStorage', 'info');
+        showToast('Firebase configuration reset', 'info');
       }
 
       async function handleConnectFirebaseClick() {
-        const roomInput = document.getElementById('sync-room-input');
-        const roomCode = cleanRoomCode(roomInput ? roomInput.value : currentRoomCode);
-
-        const apiKey = document.getElementById('cfg-apiKey').value.trim();
-        const projectId = document.getElementById('cfg-projectId').value.trim();
-        const authDomain = document.getElementById('cfg-authDomain').value.trim();
-        const storageBucket = document.getElementById('cfg-storageBucket').value.trim();
-        const messagingSenderId = document.getElementById('cfg-messagingSenderId').value.trim();
-        const appId = document.getElementById('cfg-appId').value.trim();
-
-        if (!apiKey) {
-          showToast('Please enter or paste your Firebase API Key', 'error');
-          document.getElementById('cfg-apiKey').focus();
-          return;
+        if (!currentUser) {
+          await handleGoogleSignIn();
+        } else {
+          await triggerManualCloudSync();
         }
-        if (!projectId) {
-          showToast('Please enter your Firebase Project ID', 'error');
-          document.getElementById('cfg-projectId').focus();
-          return;
-        }
-
-        const config = {
-          apiKey,
-          projectId,
-          authDomain: authDomain || `${projectId}.firebaseapp.com`,
-          storageBucket: storageBucket || `${projectId}.appspot.com`,
-          messagingSenderId,
-          appId,
-        };
-
-        const rememberKeys = document.getElementById('remember-firebase-keys').checked;
-        if (rememberKeys) {
-          localStorage.setItem(STORAGE_KEY_FIREBASE_CONFIG, JSON.stringify(config));
-          localStorage.setItem(STORAGE_KEY_SYNC_ROOM, roomCode);
-        }
-
-        currentRoomCode = roomCode;
-
-        await connectFirebase(config, roomCode, false);
       }
 
       function handleDisconnectFirebaseClick() {
-        disconnectFirebase();
-        showToast('Disconnected from Cloud. Running in Local Mode.', 'info');
-      }
-
-      function disconnectFirebase() {
-        if (typeof unsubscribeSnapshot === 'function') {
-          try {
-            unsubscribeSnapshot();
-          } catch (e) {}
-          unsubscribeSnapshot = null;
-        }
-        firestoreDb = null;
-        firebaseAuth = null;
-        firebaseApp = null;
-        updateSyncUI('LOCAL');
-      }
-
-      async function connectFirebase(config, roomCode, isAuto = false) {
-        if (typeof firebase === 'undefined') {
-          updateSyncUI('ERROR', 'Firebase SDK scripts not loaded. Check internet connection.');
-          showToast('Firebase JS SDK not loaded. Check network connection.', 'error');
-          return;
-        }
-
-        updateSyncUI('CONNECTING');
-
-        try {
-          // Tear down existing apps if any
-          if (typeof unsubscribeSnapshot === 'function') {
-            try {
-              unsubscribeSnapshot();
-            } catch (e) {}
-            unsubscribeSnapshot = null;
-          }
-
-          if (firebase.apps && firebase.apps.length > 0) {
-            await Promise.all(firebase.apps.map((app) => app.delete().catch(() => {})));
-          }
-
-          firebaseApp = firebase.initializeApp(config);
-          firestoreDb = firebase.firestore();
-          firebaseAuth = firebase.auth();
-
-          // Anonymous Authentication
-          try {
-            await firebaseAuth.signInAnonymously();
-          } catch (authErr) {
-            console.warn('Anonymous Auth skipped or not configured in project:', authErr.message);
-          }
-
-          const targetDocId = cleanRoomCode(roomCode);
-          currentRoomCode = targetDocId;
-          const docRef = firestoreDb.collection('financial_tracker_rooms').doc(targetDocId);
-
-          // Initial check: if room exists in cloud, sync it down; if empty, push current state up
-          const docSnap = await docRef.get();
-          if (docSnap.exists) {
-            const remoteData = docSnap.data();
-            if (remoteData && Array.isArray(remoteData.accounts) && remoteData.accounts.length > 0) {
-              accounts = remoteData.accounts;
-              if (Array.isArray(remoteData.transactions)) transactions = remoteData.transactions;
-              if (Array.isArray(remoteData.savingsPools)) savingsPools = remoteData.savingsPools;
-              if (remoteData.settings && typeof remoteData.settings === 'object') {
-                settings = { ...DEFAULT_SETTINGS, ...remoteData.settings };
-              }
-              if (remoteData.categories && typeof remoteData.categories === 'object') {
-                categories = remoteData.categories;
-              }
-              saveData(true); // write to localStorage, skip re-pushing
-              renderAll();
-              showToast(`Synced cloud vault "${targetDocId}" (${accounts.length} accounts, ${transactions.length} transactions)`, 'success');
-            } else {
-              // Remote document is empty, push local state to initialize it
-              await pushLocalToCloud(true);
-            }
-          } else {
-            // New room: seed with current local accounts & ledger
-            await pushLocalToCloud(true);
-            showToast(`Created new Cloud Room "${targetDocId}" and seeded data.`, 'success');
-          }
-
-          // Attach Real-Time Snapshot Listener
-          unsubscribeSnapshot = docRef.onSnapshot(
-            (snap) => {
-              if (!snap.exists) return;
-              if (snap.metadata && snap.metadata.hasPendingWrites) {
-                // Ignore local optimistic writes
-                return;
-              }
-
-              const remote = snap.data();
-              if (!remote) return;
-
-              // Check if originated from this client
-              if (remote.updatedBy === getDeviceId()) {
-                lastSyncedDate = new Date();
-                updateSyncUI('CONNECTED', 'All changes in sync with cloud');
-                return;
-              }
-
-              // Apply remote change from another device
-              isRemoteUpdating = true;
-              try {
-                if (Array.isArray(remote.accounts)) accounts = remote.accounts;
-                if (Array.isArray(remote.transactions)) transactions = remote.transactions;
-                if (Array.isArray(remote.savingsPools)) savingsPools = remote.savingsPools;
-                if (remote.settings && typeof remote.settings === 'object') {
-                  settings = { ...DEFAULT_SETTINGS, ...remote.settings };
-                }
-                if (remote.categories && typeof remote.categories === 'object') {
-                  categories = remote.categories;
-                }
-
-                saveData(true); // save to localStorage, skip remote push
-                renderAll();
-
-                lastSyncedDate = new Date();
-                updateSyncUI('CONNECTED', `Live update from ${remote.deviceName || 'remote device'}`);
-                showToast(`⚡ Real-time update synced from ${remote.deviceName || 'another device'}`, 'info');
-              } catch (e) {
-                console.error('Error applying remote snapshot:', e);
-              } finally {
-                isRemoteUpdating = false;
-              }
-            },
-            (err) => {
-              console.error('Firestore snapshot listener error:', err);
-              syncErrorMsg = err.message || 'Snapshot listener error';
-              updateSyncUI('ERROR', syncErrorMsg);
-              showToast(`Cloud Sync Error: ${syncErrorMsg}`, 'error');
-            }
-          );
-
-          lastSyncedDate = new Date();
-          updateSyncUI('CONNECTED', `Connected to room "${targetDocId}". Live sync is active.`);
-          if (!isAuto) {
-            showToast(`Connected to Firebase Firestore! Multi-device live sync active.`, 'success');
-          }
-        } catch (err) {
-          console.error('Firebase connection error:', err);
-          syncErrorMsg = err.message || 'Failed to initialize Firebase';
-          updateSyncUI('ERROR', syncErrorMsg);
-          showToast(`Firebase Connection Failed: ${syncErrorMsg}`, 'error');
-        }
+        handleGoogleSignOut();
       }
 
       function scheduleCloudPush() {
-        if (syncState !== 'CONNECTED' || !firestoreDb || isRemoteUpdating) return;
+        if (!currentUser || isRemoteUpdating || !window.FirebaseEngine) return;
         clearTimeout(pushDebounceTimer);
         updateSyncUI('SYNCING');
         pushDebounceTimer = setTimeout(async () => {
           await pushLocalToCloud(true);
-        }, 350);
+        }, 400);
       }
 
       async function pushLocalToCloud(isSilent = false) {
-        if (!firestoreDb) return;
+        if (!currentUser || !window.FirebaseEngine) return;
         try {
-          const docRef = firestoreDb.collection('financial_tracker_rooms').doc(cleanRoomCode(currentRoomCode));
           const payload = {
-            roomCode: cleanRoomCode(currentRoomCode),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            userId: currentUser.uid,
+            userEmail: currentUser.email,
+            updatedAt: new Date().toISOString(),
             updatedBy: getDeviceId(),
             deviceName: getDeviceName(),
             clientTimestamp: Date.now(),
@@ -7179,92 +7216,179 @@ service cloud.firestore {
             version: 2,
           };
 
-          await docRef.set(payload, { merge: true });
+          await window.FirebaseEngine.saveUserData(currentUser.uid, payload);
           lastSyncedDate = new Date();
-          updateSyncUI('CONNECTED', 'In sync with cloud');
+          updateSyncUI('CONNECTED', 'All changes in sync with cloud');
           if (!isSilent) {
-            showToast('Pushed current local ledger to Cloud!', 'success');
+            showToast('Synchronized with your Google Account cloud ledger!', 'success');
           }
         } catch (err) {
-          console.error('Failed to write to Firestore:', err);
+          console.error('Failed to sync to cloud:', err);
           updateSyncUI('ERROR', err.message);
-          showToast(`Cloud Push Failed: ${err.message}`, 'error');
+          showToast(`Cloud Sync Failed: ${err.message}`, 'error');
         }
       }
 
       async function forcePushCloud() {
-        if (syncState !== 'CONNECTED') {
-          showToast('Connect Firebase first before pushing to cloud.', 'error');
+        if (!currentUser) {
+          showToast('Sign in with Google first to push to cloud.', 'error');
           return;
         }
-        if (!confirm(`Overwrite cloud room "${currentRoomCode}" with your current local accounts and transactions?`)) return;
+        if (!confirm('Overwrite your personal Google Cloud ledger with the current local dataset on this device?')) return;
         await pushLocalToCloud(false);
       }
 
       async function forcePullCloud() {
-        if (syncState !== 'CONNECTED' || !firestoreDb) {
-          showToast('Connect Firebase first before pulling from cloud.', 'error');
+        if (!currentUser || !window.FirebaseEngine) {
+          showToast('Sign in with Google first to pull from cloud.', 'error');
           return;
         }
         try {
           updateSyncUI('SYNCING');
-          const docRef = firestoreDb.collection('financial_tracker_rooms').doc(cleanRoomCode(currentRoomCode));
-          const snap = await docRef.get();
-          if (!snap.exists) {
-            showToast('No cloud data exists for this room yet.', 'info');
+          const remote = await window.FirebaseEngine.getUserData(currentUser.uid);
+          if (!remote) {
+            showToast('No cloud data exists for this account yet.', 'info');
             updateSyncUI('CONNECTED');
             return;
           }
-          const remote = snap.data();
-          if (remote) {
-            if (Array.isArray(remote.accounts)) accounts = remote.accounts;
-            if (Array.isArray(remote.transactions)) transactions = remote.transactions;
-            if (Array.isArray(remote.savingsPools)) savingsPools = remote.savingsPools;
-            if (remote.settings) settings = { ...DEFAULT_SETTINGS, ...remote.settings };
-            if (remote.categories) categories = remote.categories;
-            saveData(true);
-            renderAll();
-            lastSyncedDate = new Date();
-            updateSyncUI('CONNECTED', 'Pulled freshest data from cloud');
-            showToast(`Loaded ${accounts.length} accounts & ${transactions.length} transactions from cloud!`, 'success');
-          }
+          if (Array.isArray(remote.accounts)) accounts = remote.accounts;
+          if (Array.isArray(remote.transactions)) transactions = remote.transactions;
+          if (Array.isArray(remote.savingsPools)) savingsPools = remote.savingsPools;
+          if (remote.settings) settings = { ...DEFAULT_SETTINGS, ...remote.settings };
+          if (remote.categories) categories = remote.categories;
+          saveData(true);
+          renderAll();
+          lastSyncedDate = new Date();
+          updateSyncUI('CONNECTED', 'Pulled freshest data from cloud');
+          showToast(`Loaded ${accounts.length} accounts & ${transactions.length} transactions from cloud!`, 'success');
         } catch (err) {
           updateSyncUI('ERROR', err.message);
           showToast(`Cloud Pull Failed: ${err.message}`, 'error');
         }
       }
 
-      function initFirebaseSync() {
+      async function triggerManualCloudSync() {
+        if (!currentUser) {
+          await handleGoogleSignIn();
+          return;
+        }
+        await pushLocalToCloud(false);
+      }
+
+      // Initialize Google Authentication and Firestore Real-Time Listener
+      function initGoogleAuthAndSync() {
         getDeviceId();
 
-        // 1. Check URL query params for ?room=...
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomParam = urlParams.get('room');
-        if (roomParam) {
-          currentRoomCode = cleanRoomCode(roomParam);
-          localStorage.setItem(STORAGE_KEY_SYNC_ROOM, currentRoomCode);
-        } else {
-          const storedRoom = localStorage.getItem(STORAGE_KEY_SYNC_ROOM);
-          if (storedRoom) currentRoomCode = cleanRoomCode(storedRoom);
-        }
-
-        // 2. Check stored Firebase config
-        const storedConfig = localStorage.getItem(STORAGE_KEY_FIREBASE_CONFIG);
-        if (storedConfig) {
-          try {
-            const cfg = JSON.parse(storedConfig);
-            if (cfg.apiKey && cfg.projectId) {
-              // Auto-connect with saved config
-              connectFirebase(cfg, currentRoomCode, true);
-              return;
-            }
-          } catch (e) {
-            console.error('Error reading stored Firebase config:', e);
+        // Wait until FirebaseEngine is ready on window
+        const checkEngineInterval = setInterval(() => {
+          if (window.FirebaseEngine) {
+            clearInterval(checkEngineInterval);
+            setupAuthListener();
           }
-        }
+        }, 50);
 
-        // Default to local mode
-        updateSyncUI('LOCAL');
+        // Safety timeout after 4 seconds
+        setTimeout(() => clearInterval(checkEngineInterval), 4000);
+
+        function setupAuthListener() {
+          window.FirebaseEngine.testConnection();
+
+          window.FirebaseEngine.onAuthUserChanged(async (user) => {
+            if (user) {
+              currentUser = user;
+              updateAuthUI(user);
+
+              // 1. Initial Cloud Sync / Merge Check
+              try {
+                updateSyncUI('CONNECTING', 'Checking cloud ledger...');
+                const remoteData = await window.FirebaseEngine.getUserData(user.uid);
+
+                if (remoteData && Array.isArray(remoteData.accounts) && remoteData.accounts.length > 0) {
+                  // Cloud data exists: restore it into the application
+                  accounts = remoteData.accounts;
+                  if (Array.isArray(remoteData.transactions)) transactions = remoteData.transactions;
+                  if (Array.isArray(remoteData.savingsPools)) savingsPools = remoteData.savingsPools;
+                  if (remoteData.settings && typeof remoteData.settings === 'object') {
+                    settings = { ...DEFAULT_SETTINGS, ...remoteData.settings };
+                  }
+                  if (remoteData.categories && typeof remoteData.categories === 'object') {
+                    categories = remoteData.categories;
+                  }
+                  saveData(true); // write to localStorage cache, skip re-pushing
+                  renderAll();
+                  showToast(`Restored cloud ledger for ${user.displayName || user.email}`, 'success');
+                } else {
+                  // No cloud data yet for this user: seed cloud from current local ledger
+                  await pushLocalToCloud(true);
+                  showToast(`Initialized cloud ledger for ${user.displayName || user.email}`, 'success');
+                }
+              } catch (err) {
+                console.error('Error fetching cloud ledger on login:', err);
+              }
+
+              // 2. Attach Real-Time onSnapshot Listener
+              if (currentUserDocUnsubscribe) {
+                currentUserDocUnsubscribe();
+              }
+
+              currentUserDocUnsubscribe = window.FirebaseEngine.subscribeToUserData(
+                user.uid,
+                (remote) => {
+                  if (!remote) return;
+
+                  // Check if originated from this client
+                  if (remote.updatedBy === getDeviceId()) {
+                    lastSyncedDate = new Date();
+                    updateSyncUI('CONNECTED', 'All changes in sync with cloud');
+                    return;
+                  }
+
+                  // Apply remote change from another device
+                  isRemoteUpdating = true;
+                  try {
+                    if (Array.isArray(remote.accounts)) accounts = remote.accounts;
+                    if (Array.isArray(remote.transactions)) transactions = remote.transactions;
+                    if (Array.isArray(remote.savingsPools)) savingsPools = remote.savingsPools;
+                    if (remote.settings && typeof remote.settings === 'object') {
+                      settings = { ...DEFAULT_SETTINGS, ...remote.settings };
+                    }
+                    if (remote.categories && typeof remote.categories === 'object') {
+                      categories = remote.categories;
+                    }
+
+                    saveData(true); // save to localStorage, skip remote push
+                    renderAll();
+
+                    lastSyncedDate = new Date();
+                    updateSyncUI('CONNECTED', `Live update from ${remote.deviceName || 'another device'}`);
+                    showToast(`⚡ Real-time update synced from ${remote.deviceName || 'another device'}`, 'info');
+                  } catch (e) {
+                    console.error('Error applying remote snapshot:', e);
+                  } finally {
+                    isRemoteUpdating = false;
+                  }
+                },
+                (err) => {
+                  console.error('Firestore snapshot error:', err);
+                  syncErrorMsg = err.message || 'Snapshot error';
+                  updateSyncUI('ERROR', syncErrorMsg);
+                  showToast(`Cloud Sync: ${syncErrorMsg}`, 'error');
+                }
+              );
+
+              lastSyncedDate = new Date();
+              updateSyncUI('CONNECTED', `Live sync active for ${user.email}`);
+            } else {
+              // User is logged out
+              currentUser = null;
+              if (currentUserDocUnsubscribe) {
+                currentUserDocUnsubscribe();
+                currentUserDocUnsubscribe = null;
+              }
+              updateAuthUI(null);
+            }
+          });
+        }
       }
 
       // HTML escape utility
@@ -7281,6 +7405,7 @@ service cloud.firestore {
       // Keyboard Esc handler for modals
       window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+          closeUserDropdown();
           closePurpleDrawer();
           closeAccountModal();
           closeTxModal();
@@ -7317,7 +7442,7 @@ service cloud.firestore {
         if (currentWorkspace === 'main') {
           switchMainTab(currentMainTab);
         }
-        initFirebaseSync();
+        initGoogleAuthAndSync();
       });
     </script>
   </body>
